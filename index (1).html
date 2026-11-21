@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengingat Saya</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f3f6fb;
+    color: #1f2937;
+    font-size: 18px;
+  }
+  .wadah { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 28px; margin: 8px 0 4px; }
+  h3 { font-size: 18px; margin: 16px 0 6px; }
+  .tanggal-hari-ini { color: #4b5563; margin-bottom: 16px; }
+
+  #banner {
+    display: none;
+    background: #fef3c7;
+    border: 3px solid #f59e0b;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    font-weight: bold;
+    font-size: 20px;
+  }
+  #banner button { margin-top: 10px; }
+
+  .kartu {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  label { display: block; font-weight: bold; margin: 10px 0 4px; }
+  input[type="text"], input[type="date"], input[type="time"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 18px;
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
+  }
+  .baris { display: flex; gap: 10px; }
+  .baris > div { flex: 1; }
+  button {
+    font-size: 18px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+  }
+  button.abu { background: #6b7280; }
+  button.merah { background: #dc2626; padding: 8px 12px; font-size: 16px; }
+  button.kecil { padding: 8px 12px; font-size: 16px; }
+  #tombol-tambah { width: 100%; margin-top: 14px; }
+
+  /* Kalender */
+  .kal-atas { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .kal-judul { font-size: 22px; font-weight: bold; text-align: center; flex: 1; }
+  .kal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .kal-kepala { text-align: center; font-weight: bold; font-size: 14px; padding: 4px 0; color: #4b5563; }
+  .kal-kepala.minggu { color: #dc2626; }
+  .kal-kosong { min-height: 46px; }
+  button.kal-hari {
+    position: relative;
+    min-height: 46px;
+    padding: 0;
+    font-size: 17px;
+    background: #fff;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+  button.kal-hari.minggu { color: #dc2626; }
+  button.kal-hari.libur { background: #fee2e2; color: #b91c1c; font-weight: bold; }
+  button.kal-hari.cuti { background: #ffedd5; color: #c2410c; font-weight: bold; }
+  button.kal-hari.sekarang { border: 3px solid #2563eb; }
+  button.kal-hari.dipilih { background: #2563eb; color: #fff; border-color: #1d4ed8; }
+  .titik {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    margin-left: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #059669;
+  }
+  button.kal-hari.dipilih .titik { background: #fff; }
+  .legenda { display: flex; flex-wrap: wrap; gap: 12px; font-size: 14px; margin: 12px 0; color: #4b5563; }
+  .legenda span.kotak { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 4px; vertical-align: middle; }
+  .kotak.k-libur { background: #fee2e2; border: 1px solid #b91c1c; }
+  .kotak.k-cuti { background: #ffedd5; border: 1px solid #c2410c; }
+  .kotak.k-jadwal { background: #059669; border-radius: 50% !important; }
+  .label-libur { padding: 8px 10px; border-radius: 8px; margin: 6px 0; font-weight: bold; }
+  .label-libur.libur, .baris-libur.libur { background: #fee2e2; color: #b91c1c; }
+  .label-libur.cuti, .baris-libur.cuti { background: #ffedd5; color: #c2410c; }
+  .baris-libur { padding: 6px 10px; border-radius: 8px; margin-bottom: 4px; font-size: 16px; }
+  .jadwal-hari { padding: 6px 0; border-bottom: 1px solid #e5e7eb; }
+  .jadwal-hari.selesai { text-decoration: line-through; color: #9ca3af; }
+
+  h2 { font-size: 20px; margin: 22px 0 8px; }
+  h2.terlambat { color: #dc2626; }
+  h2.hari-ini { color: #2563eb; }
+  h2.selesai { color: #6b7280; }
+
+  .tugas {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .tugas.terlambat { border-left: 6px solid #dc2626; }
+  .tugas.hari-ini { border-left: 6px solid #2563eb; }
+  .tugas input[type="checkbox"] { width: 28px; height: 28px; flex-shrink: 0; }
+  .isi { flex: 1; }
+  .judul { font-weight: bold; }
+  .waktu { font-size: 15px; color: #4b5563; }
+  .tugas.selesai .judul { text-decoration: line-through; color: #9ca3af; }
+  .aksi { display: flex; flex-direction: column; gap: 6px; }
+  .kosong { color: #6b7280; text-align: center; padding: 20px; }
+  .catatan { font-size: 14px; color: #6b7280; margin-top: 12px; }
+  .alat button { margin: 4px 4px 4px 0; }
+  .alat p { font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="wadah">
+  <h1>Pengingat Saya</h1>
+  <div class="tanggal-hari-ini" id="hari-ini"></div>
+
+  <div id="banner">
+    <div id="teks-banner"></div>
+    <button id="tutup-banner">Oke, saya lihat</button>
+  </div>
+
+  <div class="kartu">
+    <label for="judul">Apa yang harus diingat?</label>
+    <input type="text" id="judul" placeholder="Contoh: Minum obat, bayar listrik">
+
+    <div class="baris">
+      <div>
+        <label for="tanggal">Tanggal</label>
+        <input type="date" id="tanggal">
+      </div>
+      <div>
+        <label for="jam">Jam</label>
+        <input type="time" id="jam">
+      </div>
+    </div>
+
+    <button id="tombol-tambah">+ Tambah</button>
+  </div>
+
+  <div class="kartu">
+    <div class="kal-atas">
+      <button class="abu kecil" id="bulan-sebelum" aria-label="Bulan sebelumnya">&lt;</button>
+      <div class="kal-judul" id="kal-judul"></div>
+      <button class="abu kecil" id="bulan-berikut" aria-label="Bulan berikutnya">&gt;</button>
+    </div>
+    <div class="kal-grid" id="kal-grid"></div>
+    <div class="legenda">
+      <span><span class="kotak k-libur"></span>Libur nasional</span>
+      <span><span class="kotak k-cuti"></span>Cuti bersama</span>
+      <span><span class="kotak k-jadwal"></span>Ada jadwal</span>
+    </div>
+    <button class="abu kecil" id="ke-hari-ini">Kembali ke hari ini</button>
+    <div id="detail-hari"></div>
+    <div id="libur-bulan"></div>
+    <div class="catatan" id="catatan-libur"></div>
+  </div>
+
+  <div id="daftar"></div>
+
+  <div class="kartu alat">
+    <h3>Suara dan alarm</h3>
+    <p id="status-suara">Suara belum aktif: sentuh layar atau klik di mana saja sekali.</p>
+    <button class="abu" id="tombol-tes-suara">Tes suara</button>
+    <button class="abu" id="tombol-notif">Aktifkan notifikasi</button>
+
+    <h3>Agar tetap bunyi walau browser ditutup</h3>
+    <p>
+      Halaman web hanya bisa berbunyi selama halamannya masih terbuka.
+      Supaya HP tetap berbunyi walau browser ditutup, masukkan jadwalnya ke aplikasi kalender di HP:
+      tekan tombol "Ke kalender HP" pada pengingat, atau unduh semuanya sekaligus lalu buka filenya di HP.
+    </p>
+    <button id="tombol-unduh-semua">Unduh semua jadwal (.ics)</button>
+  </div>
+
+  <p class="catatan">
+    Data tersimpan di browser perangkat ini, jadi tidak otomatis muncul di perangkat lain.
+  </p>
+</div>
+
+<script>
+  var KUNCI = "pengingat-tugas";
+  var JUDUL_ASLI = "Pengingat Saya";
+  var NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  var NAMA_HARI_PENDEK = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  var TAHUN_ADA = [2026, 2027];
+  var tugas = [];
+
+  /* ---------- Data hari libur (SKB 3 Menteri) ---------- */
+  var HARI_LIBUR = {};
+  function libur(tgl, nama) { HARI_LIBUR[tgl] = { nama: nama, jenis: "libur" }; }
+  function cuti(tgl, nama) { HARI_LIBUR[tgl] = { nama: nama, jenis: "cuti" }; }
+
+  // 2026
+  libur("2026-01-01", "Tahun Baru 2026 Masehi");
+  libur("2026-01-16", "Isra Mikraj Nabi Muhammad saw.");
+  libur("2026-02-17", "Tahun Baru Imlek 2577 Kongzili");
+  libur("2026-03-19", "Hari Suci Nyepi (Tahun Baru Saka 1948)");
+  libur("2026-03-21", "Idulfitri 1447 H");
+  libur("2026-03-22", "Idulfitri 1447 H");
+  libur("2026-04-03", "Wafat Yesus Kristus");
+  libur("2026-04-05", "Kebangkitan Yesus Kristus (Paskah)");
+  libur("2026-05-01", "Hari Buruh Internasional");
+  libur("2026-05-14", "Kenaikan Yesus Kristus");
+  libur("2026-05-27", "Iduladha 1447 H");
+  libur("2026-05-31", "Hari Raya Waisak 2570 BE");
+  libur("2026-06-01", "Hari Lahir Pancasila");
+  libur("2026-06-16", "1 Muharam Tahun Baru Islam 1448 H");
+  libur("2026-08-17", "Proklamasi Kemerdekaan");
+  libur("2026-08-25", "Maulid Nabi Muhammad saw.");
+  libur("2026-12-25", "Kelahiran Yesus Kristus (Natal)");
+  cuti("2026-02-16", "Tahun Baru Imlek 2577 Kongzili");
+  cuti("2026-03-18", "Hari Suci Nyepi (Tahun Baru Saka 1948)");
+  cuti("2026-03-20", "Idulfitri 1447 H");
+  cuti("2026-03-23", "Idulfitri 1447 H");
+  cuti("2026-03-24", "Idulfitri 1447 H");
+  cuti("2026-05-15", "Kenaikan Yesus Kristus");
+  cuti("2026-05-28", "Iduladha 1447 H");
+  cuti("2026-12-24", "Kelahiran Yesus Kristus (Natal)");
+
+  // 2027
+  libur("2027-01-01", "Tahun Baru 2027 Masehi");
+  libur("2027-01-05", "Isra Mikraj Nabi Muhammad SAW 1448 H");
+  libur("2027-02-06", "Tahun Baru Imlek 2578 Kongzili");
+  libur("2027-03-08", "Hari Suci Nyepi (Tahun Baru Saka 1949)");
+  libur("2027-03-10", "Idulfitri 1448 H");
+  libur("2027-03-11", "Idulfitri 1448 H");
+  libur("2027-03-26", "Wafat Yesus Kristus");
+  libur("2027-03-28", "Kebangkitan Yesus Kristus (Paskah)");
+  libur("2027-05-01", "Hari Buruh Internasional");
+  libur("2027-05-06", "Kenaikan Yesus Kristus");
+  libur("2027-05-17", "Iduladha 1448 H");
+  libur("2027-05-20", "Hari Raya Waisak 2571 BE");
+  libur("2027-06-01", "Hari Lahir Pancasila");
+  libur("2027-06-06", "1 Muharam Tahun Baru Islam 1449 H");
+  libur("2027-08-15", "Maulid Nabi Muhammad SAW");
+  libur("2027-08-17", "Proklamasi Kemerdekaan");
+  libur("2027-12-25", "Kelahiran Yesus Kristus (Natal)");
+  libur("2027-12-26", "Isra Mikraj Nabi Muhammad SAW 1449 H");
+  cuti("2027-02-05", "Tahun Baru Imlek 2578 Kongzili");
+  cuti("2027-03-09", "Idulfitri 1448 H");
+  cuti("2027-03-12", "Idulfitri 1448 H");
+  cuti("2027-03-15", "Idulfitri 1448 H");
+  cuti("2027-03-25", "Wafat Yesus Kristus");
+  cuti("2027-05-18", "Iduladha 1448 H");
+  cuti("2027-05-19", "Hari Raya Waisak 2571 BE");
+  cuti("2027-12-24", "Kelahiran Yesus Kristus (Natal)");
+
+  /* ---------- Penyimpanan ---------- */
+  function muat() {
+    try {
+      var data = localStorage.getItem(KUNCI);
+      tugas = data ? JSON.parse(data) : [];
+    } catch (e) {
+      tugas = [];
+    }
+  }
+
+  function simpan() {
+    try {
+      localStorage.setItem(KUNCI, JSON.stringify(tugas));
+    } catch (e) {}
+  }
+
+  /* ---------- Bantuan tanggal ---------- */
+  function dua(n) { return n < 10 ? "0" + n : "" + n; }
+
+  function tanggalHariIni() {
+    var d = new Date();
+    return d.getFullYear() + "-" + dua(d.getMonth() + 1) + "-" + dua(d.getDate());
+  }
+
+  function jamSekarang() {
+    var d = new Date();
+    return dua(d.getHours()) + ":" + dua(d.getMinutes());
+  }
+
+  function namaTanggal(str) {
+    var bagian = str.split("-");
+    var d = new Date(bagian[0], bagian[1] - 1, bagian[2]);
+    return d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+
+  var hariDipilih = tanggalHariIni();
+  var bulanTampil = { tahun: new Date().getFullYear(), bulan: new Date().getMonth() };
+
+  function kelompok(t) {
+    if (t.selesai) return "selesai";
+    if (!t.tanggal) return "tanpa";
+    var hariIni = tanggalHariIni();
+    if (t.tanggal < hariIni) return "terlambat";
+    if (t.tanggal === hariIni) {
+      if (t.jam && t.jam < jamSekarang()) return "terlambat";
+      return "hari-ini";
+    }
+    return "mendatang";
+  }
+
+  function urutan(a, b) {
+    var x = (a.tanggal || "9999-99-99") + (a.jam || "99:99");
+    var y = (b.tanggal || "9999-99-99") + (b.jam || "99:99");
+    return x < y ? -1 : x > y ? 1 : 0;
+  }
+
+  function buatElemen(tag, kelas, teks) {
+    var el = document.createElement(tag);
+    if (kelas) el.className = kelas;
+    if (teks) el.textContent = teks;
+    return el;
+  }
+
+  /* ---------- Suara alarm ---------- */
+  var audioCtx = null;
+  var timerAlarm = null;
+  var hitungAlarm = 0;
+
+  function siapkanSuara() {
+    try {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      if (audioCtx) {
+        document.getElementById("status-suara").textContent = "Suara siap.";
+      }
+    } catch (e) {}
+  }
+
+  function bunyi() {
+    if (!audioCtx) return;
+    try {
+      var t = audioCtx.currentTime;
+      [0, 0.25, 0.5].forEach(function (jeda) {
+        var osc = audioCtx.createOscillator();
+        var vol = audioCtx.createGain();
+        osc.type = "square";
+        osc.frequency.value = 880;
+        vol.gain.setValueAtTime(0.0001, t + jeda);
+        vol.gain.exponentialRampToValueAtTime(0.4, t + jeda + 0.02);
+        vol.gain.exponentialRampToValueAtTime(0.0001, t + jeda + 0.2);
+        osc.connect(vol);
+        vol.connect(audioCtx.destination);
+        osc.start(t + jeda);
+        osc.stop(t + jeda + 0.22);
+      });
+    } catch (e) {}
+  }
+
+  function getar() {
+    try {
+      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+    } catch (e) {}
+  }
+
+  function mulaiAlarm(teks) {
+    hentikanAlarm();
+    siapkanSuara();
+    hitungAlarm = 0;
+    document.title = "WAKTUNYA! " + teks;
+    bunyi();
+    getar();
+    // berbunyi tiap 1,5 detik, berhenti sendiri setelah 1 menit
+    timerAlarm = setInterval(function () {
+      hitungAlarm++;
+      if (hitungAlarm >= 40) {
+        hentikanAlarm();
+        return;
+      }
+      bunyi();
+      getar();
+    }, 1500);
+  }
+
+  function hentikanAlarm() {
+    if (timerAlarm) {
+      clearInterval(timerAlarm);
+      timerAlarm = null;
+    }
+    document.title = JUDUL_ASLI;
+  }
+
+  /* ---------- Kalender HP (.ics dan Google Kalender) ---------- */
+  function escIcs(s) {
+    return String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  }
+
+  function stempelUtc() {
+    return new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  }
+
+  function waktuIcs(tanggal, jam) {
+    return tanggal.replace(/-/g, "") + "T" + jam.replace(":", "") + "00";
+  }
+
+  function tambahMenit(tanggal, jam, menit) {
+    var d = new Date(tanggal + "T" + jam);
+    d = new Date(d.getTime() + menit * 60000);
+    return d.getFullYear() + dua(d.getMonth() + 1) + dua(d.getDate()) + "T" + dua(d.getHours()) + dua(d.getMinutes()) + "00";
+  }
+
+  function hariBerikutnya(tanggal) {
+    var p = tanggal.split("-");
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + 1);
+    return d.getFullYear() + dua(d.getMonth() + 1) + dua(d.getDate());
+  }
+
+  function barisAlarm(pemicu, judul) {
+    return ["BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escIcs(judul), "TRIGGER:" + pemicu, "END:VALARM"];
+  }
+
+  function barisEvent(t) {
+    var b = ["BEGIN:VEVENT", "UID:" + t.id + "@pengingat-saya", "DTSTAMP:" + stempelUtc(), "SUMMARY:" + escIcs(t.judul)];
+    if (t.jam) {
+      b.push("DTSTART:" + waktuIcs(t.tanggal, t.jam));
+      b.push("DTEND:" + tambahMenit(t.tanggal, t.jam, 30));
+      b = b.concat(barisAlarm("PT0S", t.judul));
+      b = b.concat(barisAlarm("-PT10M", t.judul));
+    } else {
+      b.push("DTSTART;VALUE=DATE:" + t.tanggal.replace(/-/g, ""));
+      b.push("DTEND;VALUE=DATE:" + hariBerikutnya(t.tanggal));
+      b = b.concat(barisAlarm("PT8H", t.judul));
+    }
+    b.push("END:VEVENT");
+    return b;
+  }
+
+  function buatIcs(daftar) {
+    var baris = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Pengingat Saya//ID", "CALSCALE:GREGORIAN"];
+    daftar.forEach(function (t) {
+      baris = baris.concat(barisEvent(t));
+    });
+    baris.push("END:VCALENDAR");
+    return baris.join("\r\n");
+  }
+
+  function unduhIcs(daftar, namaFile) {
+    var blob = new Blob([buatIcs(daftar)], { type: "text/calendar;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = namaFile;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function linkGoogle(t) {
+    var mulai, selesai;
+    if (t.jam) {
+      mulai = waktuIcs(t.tanggal, t.jam);
+      selesai = tambahMenit(t.tanggal, t.jam, 30);
+    } else {
+      mulai = t.tanggal.replace(/-/g, "");
+      selesai = hariBerikutnya(t.tanggal);
+    }
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+      "&text=" + encodeURIComponent(t.judul) +
+      "&dates=" + mulai + "/" + selesai +
+      "&details=" + encodeURIComponent("Dari aplikasi Pengingat Saya");
+  }
+
+  function unduhSemua() {
+    var daftar = tugas.filter(function (t) { return !t.selesai && t.tanggal; });
+    if (daftar.length === 0) {
+      alert("Belum ada pengingat bertanggal yang bisa diunduh.");
+      return;
+    }
+    unduhIcs(daftar, "jadwal-pengingat.ics");
+  }
+
+  /* ---------- Tampilan daftar ---------- */
+  function gambarTugas(t, grup) {
+    var baris = buatElemen("div", "tugas " + grup);
+
+    var cek = document.createElement("input");
+    cek.type = "checkbox";
+    cek.checked = t.selesai;
+    cek.addEventListener("change", function () {
+      t.selesai = cek.checked;
+      simpan();
+      tampilkan();
+    });
+
+    var isi = buatElemen("div", "isi");
+    isi.appendChild(buatElemen("div", "judul", t.judul));
+    var waktu = "";
+    if (t.tanggal) waktu = namaTanggal(t.tanggal);
+    if (t.jam) waktu += " pukul " + t.jam;
+    if (waktu) isi.appendChild(buatElemen("div", "waktu", waktu));
+
+    var aksi = buatElemen("div", "aksi");
+    if (t.tanggal) {
+      var tombolHp = buatElemen("button", "kecil", "Ke kalender HP");
+      tombolHp.addEventListener("click", function () {
+        window.open(linkGoogle(t), "_blank");
+      });
+      aksi.appendChild(tombolHp);
+    }
+    var hapus = buatElemen("button", "merah", "Hapus");
+    hapus.addEventListener("click", function () {
+      if (confirm("Hapus \"" + t.judul + "\"?")) {
+        tugas = tugas.filter(function (x) { return x.id !== t.id; });
+        simpan();
+        tampilkan();
+      }
+    });
+    aksi.appendChild(hapus);
+
+    baris.appendChild(cek);
+    baris.appendChild(isi);
+    baris.appendChild(aksi);
+    return baris;
+  }
+
+  function tampilkan() {
+    var daftar = document.getElementById("daftar");
+    daftar.innerHTML = "";
+
+    var bagian = [
+      { kunci: "terlambat", judul: "Sudah lewat, jangan lupa!" },
+      { kunci: "hari-ini", judul: "Hari ini" },
+      { kunci: "mendatang", judul: "Akan datang" },
+      { kunci: "tanpa", judul: "Tanpa jadwal" },
+      { kunci: "selesai", judul: "Sudah selesai" }
+    ];
+
+    var adaIsi = false;
+    var urut = tugas.slice().sort(urutan);
+
+    bagian.forEach(function (b) {
+      var anggota = urut.filter(function (t) { return kelompok(t) === b.kunci; });
+      if (anggota.length === 0) return;
+      adaIsi = true;
+      daftar.appendChild(buatElemen("h2", b.kunci, b.judul));
+      anggota.forEach(function (t) {
+        daftar.appendChild(gambarTugas(t, b.kunci));
+      });
+    });
+
+    if (!adaIsi) {
+      daftar.appendChild(buatElemen("div", "kosong", "Belum ada pengingat. Tambahkan yang pertama di atas."));
+    }
+
+    gambarKalender();
+  }
+
+  /* ---------- Tampilan kalender ---------- */
+  function buatSel(tahun, bulan, tanggal, hariIni) {
+    var kunci = tahun + "-" + dua(bulan + 1) + "-" + dua(tanggal);
+    var kelas = "kal-hari";
+    var lib = HARI_LIBUR[kunci];
+    if (lib) kelas += " " + lib.jenis;
+    if (new Date(tahun, bulan, tanggal).getDay() === 0) kelas += " minggu";
+    if (kunci === hariIni) kelas += " sekarang";
+    if (kunci === hariDipilih) kelas += " dipilih";
+
+    var sel = buatElemen("button", kelas, String(tanggal));
+    sel.type = "button";
+    var adaJadwal = tugas.some(function (x) { return x.tanggal === kunci && !x.selesai; });
+    if (adaJadwal) sel.appendChild(buatElemen("span", "titik"));
+    sel.addEventListener("click", function () {
+      hariDipilih = kunci;
+      document.getElementById("tanggal").value = kunci;
+      gambarKalender();
+    });
+    return sel;
+  }
+
+  function gambarDetailHari() {
+    var el = document.getElementById("detail-hari");
+    el.innerHTML = "";
+    el.appendChild(buatElemen("h3", "", namaTanggal(hariDipilih)));
+
+    var lib = HARI_LIBUR[hariDipilih];
+    if (lib) {
+      var awalan = lib.jenis === "libur" ? "Libur nasional: " : "Cuti bersama: ";
+      el.appendChild(buatElemen("div", "label-libur " + lib.jenis, awalan + lib.nama));
+    }
+
+    var ada = tugas.filter(function (t) { return t.tanggal === hariDipilih; }).sort(urutan);
+    if (ada.length === 0) {
+      el.appendChild(buatElemen("div", "waktu", "Belum ada jadwal di hari ini."));
+      return;
+    }
+    ada.forEach(function (t) {
+      var teks = (t.jam ? t.jam + " - " : "") + t.judul;
+      el.appendChild(buatElemen("div", "jadwal-hari" + (t.selesai ? " selesai" : ""), teks));
+    });
+  }
+
+  function gambarLiburBulan() {
+    var tahun = bulanTampil.tahun;
+    var bulan = bulanTampil.bulan;
+    var el = document.getElementById("libur-bulan");
+    var catatan = document.getElementById("catatan-libur");
+    el.innerHTML = "";
+
+    if (TAHUN_ADA.indexOf(tahun) === -1) {
+      catatan.textContent = "Data hari libur baru tersedia untuk tahun 2026 dan 2027.";
+      return;
+    }
+    catatan.textContent = "Data dari SKB 3 Menteri. Tanggal Idulfitri dan Iduladha bisa disesuaikan oleh Menteri Agama.";
+
+    var awal = tahun + "-" + dua(bulan + 1) + "-";
+    var daftar = Object.keys(HARI_LIBUR).filter(function (k) { return k.indexOf(awal) === 0; }).sort();
+    el.appendChild(buatElemen("h3", "", "Hari libur bulan ini"));
+    if (daftar.length === 0) {
+      el.appendChild(buatElemen("div", "waktu", "Tidak ada hari libur di bulan ini."));
+      return;
+    }
+    daftar.forEach(function (k) {
+      var l = HARI_LIBUR[k];
+      var tgl = parseInt(k.slice(8), 10);
+      var jenis = l.jenis === "libur" ? "libur nasional" : "cuti bersama";
+      el.appendChild(buatElemen("div", "baris-libur " + l.jenis, tgl + " " + NAMA_BULAN[bulan] + ": " + l.nama + " (" + jenis + ")"));
+    });
+  }
+
+  function gambarKalender() {
+    var tahun = bulanTampil.tahun;
+    var bulan = bulanTampil.bulan;
+    document.getElementById("kal-judul").textContent = NAMA_BULAN[bulan] + " " + tahun;
+
+    var grid = document.getElementById("kal-grid");
+    grid.innerHTML = "";
+    NAMA_HARI_PENDEK.forEach(function (nama, i) {
+      grid.appendChild(buatElemen("div", "kal-kepala" + (i === 0 ? " minggu" : ""), nama));
+    });
+
+    var pertama = new Date(tahun, bulan, 1).getDay();
+    var jumlah = new Date(tahun, bulan + 1, 0).getDate();
+    var hariIni = tanggalHariIni();
+    var i;
+    for (i = 0; i < pertama; i++) {
+      grid.appendChild(buatElemen("div", "kal-kosong"));
+    }
+    for (i = 1; i <= jumlah; i++) {
+      grid.appendChild(buatSel(tahun, bulan, i, hariIni));
+    }
+
+    gambarDetailHari();
+    gambarLiburBulan();
+  }
+
+  function pindahBulan(selisih) {
+    bulanTampil.bulan += selisih;
+    if (bulanTampil.bulan < 0) {
+      bulanTampil.bulan = 11;
+      bulanTampil.tahun--;
+    } else if (bulanTampil.bulan > 11) {
+      bulanTampil.bulan = 0;
+      bulanTampil.tahun++;
+    }
+    gambarKalender();
+  }
+
+  function keHariIni() {
+    var d = new Date();
+    bulanTampil.tahun = d.getFullYear();
+    bulanTampil.bulan = d.getMonth();
+    hariDipilih = tanggalHariIni();
+    document.getElementById("tanggal").value = hariDipilih;
+    gambarKalender();
+  }
+
+  /* ---------- Tambah dan pengingat ---------- */
+  function tambah() {
+    var judul = document.getElementById("judul").value.trim();
+    if (!judul) {
+      alert("Tulis dulu apa yang mau diingat.");
+      return;
+    }
+    tugas.push({
+      id: Date.now(),
+      judul: judul,
+      tanggal: document.getElementById("tanggal").value,
+      jam: document.getElementById("jam").value,
+      selesai: false,
+      sudahDiingatkan: false
+    });
+    simpan();
+    document.getElementById("judul").value = "";
+    document.getElementById("jam").value = "";
+    tampilkan();
+  }
+
+  function tampilkanBanner(teks) {
+    document.getElementById("teks-banner").textContent = teks;
+    document.getElementById("banner").style.display = "block";
+  }
+
+  function cekPengingat() {
+    var sekarang = new Date();
+    var berubah = false;
+    var baru = [];
+    tugas.forEach(function (t) {
+      if (t.selesai || t.sudahDiingatkan || !t.tanggal || !t.jam) return;
+      var waktu = new Date(t.tanggal + "T" + t.jam);
+      if (sekarang >= waktu) {
+        t.sudahDiingatkan = true;
+        berubah = true;
+        // pengingat yang sudah lewat lebih dari 6 jam tidak dibunyikan lagi
+        if (sekarang - waktu < 6 * 3600 * 1000) {
+          baru.push(t.judul);
+          if ("Notification" in window && Notification.permission === "granted") {
+            try { new Notification("Pengingat", { body: t.judul }); } catch (e) {}
+          }
+        }
+      }
+    });
+    if (baru.length > 0) {
+      var teks = baru.join(", ");
+      tampilkanBanner("Waktunya: " + teks);
+      mulaiAlarm(teks);
+    }
+    if (berubah) {
+      simpan();
+      tampilkan();
+    }
+  }
+
+  function aktifkanNotifikasi() {
+    if (!("Notification" in window)) {
+      alert("Browser ini tidak mendukung notifikasi. Pengingat tetap muncul sebagai kotak kuning dan bunyi di halaman.");
+      return;
+    }
+    Notification.requestPermission().then(function (hasil) {
+      if (hasil === "granted") {
+        alert("Notifikasi aktif.");
+      } else {
+        alert("Notifikasi tidak diizinkan. Pengingat tetap muncul sebagai kotak kuning dan bunyi di halaman.");
+      }
+    });
+  }
+
+  /* ---------- Mulai ---------- */
+  document.getElementById("hari-ini").textContent = "Hari ini: " + namaTanggal(tanggalHariIni());
+  document.getElementById("tanggal").value = tanggalHariIni();
+
+  document.getElementById("tombol-tambah").addEventListener("click", tambah);
+  document.getElementById("tombol-notif").addEventListener("click", aktifkanNotifikasi);
+  document.getElementById("tombol-unduh-semua").addEventListener("click", unduhSemua);
+  document.getElementById("tombol-tes-suara").addEventListener("click", function () {
+    siapkanSuara();
+    bunyi();
+  });
+  document.getElementById("tutup-banner").addEventListener("click", function () {
+    document.getElementById("banner").style.display = "none";
+    hentikanAlarm();
+  });
+  document.getElementById("judul").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") tambah();
+  });
+  document.getElementById("bulan-sebelum").addEventListener("click", function () { pindahBulan(-1); });
+  document.getElementById("bulan-berikut").addEventListener("click", function () { pindahBulan(1); });
+  document.getElementById("ke-hari-ini").addEventListener("click", keHariIni);
+  document.getElementById("tanggal").addEventListener("change", function () {
+    var nilai = document.getElementById("tanggal").value;
+    if (!nilai) return;
+    hariDipilih = nilai;
+    bulanTampil.tahun = Number(nilai.slice(0, 4));
+    bulanTampil.bulan = Number(nilai.slice(5, 7)) - 1;
+    gambarKalender();
+  });
+
+  // Browser baru mengizinkan suara setelah pengguna menyentuh atau mengklik halaman
+  document.addEventListener("click", siapkanSuara);
+  document.addEventListener("touchstart", siapkanSuara);
+  document.addEventListener("keydown", siapkanSuara);
+
+  muat();
+  tampilkan();
+  cekPengingat();
+  setInterval(cekPengingat, 20000);
+  setInterval(tampilkan, 60000);
+</script>
+</body>
+</html>
