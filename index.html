@@ -196,6 +196,15 @@
       tekan tombol "Ke kalender HP" pada pengingat, atau unduh semuanya sekaligus lalu buka filenya di HP.
     </p>
     <button id="tombol-unduh-semua">Unduh semua jadwal (.ics)</button>
+
+    <h3>Cadangan data</h3>
+    <p>
+      Simpan semua pengingat ke sebuah file sebagai cadangan, atau untuk memindahkannya ke perangkat lain.
+      Buka file cadangan itu di sini untuk memulihkannya. Data yang sudah ada tidak dihapus.
+    </p>
+    <button class="abu" id="tombol-simpan-cadangan">Simpan cadangan</button>
+    <button class="abu" id="tombol-buka-cadangan">Buka cadangan</button>
+    <input type="file" id="berkas-cadangan" accept=".json,application/json" style="display:none">
   </div>
 
   <p class="catatan">
@@ -497,6 +506,71 @@
     unduhIcs(daftar, "jadwal-pengingat.ics");
   }
 
+  /* ---------- Cadangan data ---------- */
+  function unduhBerkas(isi, namaFile, tipe) {
+    var blob = new Blob([isi], { type: tipe });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = namaFile;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function simpanCadangan() {
+    var isi = JSON.stringify({
+      aplikasi: "pengingat-saya",
+      versi: 1,
+      dibuat: new Date().toISOString(),
+      tugas: tugas
+    }, null, 2);
+    unduhBerkas(isi, "cadangan-pengingat-" + tanggalHariIni() + ".json", "application/json");
+  }
+
+  function gabungkanCadangan(teks) {
+    var data = JSON.parse(teks);
+    if (!data || data.aplikasi !== "pengingat-saya" || !Array.isArray(data.tugas)) {
+      throw new Error("Bukan file cadangan Pengingat Saya.");
+    }
+    var ada = {};
+    tugas.forEach(function (t) { ada[t.id] = true; });
+    var tambahan = 0;
+    data.tugas.forEach(function (t) {
+      if (!t || typeof t.judul !== "string" || !t.judul.trim()) return;
+      var id = Number(t.id);
+      if (!id || ada[id]) return;
+      ada[id] = true;
+      tugas.push({
+        id: id,
+        judul: t.judul.slice(0, 200),
+        tanggal: /^\d{4}-\d{2}-\d{2}$/.test(t.tanggal) ? t.tanggal : "",
+        jam: /^\d{2}:\d{2}$/.test(t.jam) ? t.jam : "",
+        selesai: t.selesai === true,
+        sudahDiingatkan: t.sudahDiingatkan === true
+      });
+      tambahan++;
+    });
+    return tambahan;
+  }
+
+  function bukaCadangan(berkas) {
+    if (!berkas) return;
+    var pembaca = new FileReader();
+    pembaca.onload = function () {
+      try {
+        var jumlah = gabungkanCadangan(String(pembaca.result));
+        simpan();
+        tampilkan();
+        alert(jumlah + " pengingat ditambahkan dari cadangan.");
+      } catch (e) {
+        alert("File cadangan tidak bisa dibaca. Pastikan ini file cadangan dari aplikasi ini.");
+      }
+    };
+    pembaca.readAsText(berkas);
+  }
+
   /* ---------- Tampilan daftar ---------- */
   function gambarTugas(t, grup) {
     var baris = buatElemen("div", "tugas " + grup);
@@ -769,6 +843,14 @@
   document.getElementById("tombol-tambah").addEventListener("click", tambah);
   document.getElementById("tombol-notif").addEventListener("click", aktifkanNotifikasi);
   document.getElementById("tombol-unduh-semua").addEventListener("click", unduhSemua);
+  document.getElementById("tombol-simpan-cadangan").addEventListener("click", simpanCadangan);
+  document.getElementById("tombol-buka-cadangan").addEventListener("click", function () {
+    document.getElementById("berkas-cadangan").click();
+  });
+  document.getElementById("berkas-cadangan").addEventListener("change", function (e) {
+    bukaCadangan(e.target.files[0]);
+    e.target.value = "";
+  });
   document.getElementById("tombol-tes-suara").addEventListener("click", function () {
     siapkanSuara();
     bunyi();
