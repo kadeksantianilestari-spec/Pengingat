@@ -184,6 +184,17 @@
   <div id="daftar"></div>
 
   <div class="kartu alat">
+    <h3>Sinkron antar perangkat</h3>
+    <p id="status-sinkron">Menyiapkan sinkron online...</p>
+    <button id="tombol-masuk" style="display:none">Masuk dengan Google</button>
+    <button class="abu" id="tombol-keluar" style="display:none">Keluar</button>
+    <p class="catatan">
+      Masuk dengan akun Google yang sama di komputer kantor dan di HP, maka pengingatnya akan sama di keduanya.
+      Data disimpan di server Google (Firebase), jadi jangan menulis hal yang sangat rahasia di pengingat.
+    </p>
+  </div>
+
+  <div class="kartu alat">
     <h3>Suara dan alarm</h3>
     <p id="status-suara">Suara belum aktif: sentuh layar atau klik di mana saja sekali.</p>
     <button class="abu" id="tombol-tes-suara">Tes suara</button>
@@ -285,15 +296,33 @@
     try {
       var data = localStorage.getItem(KUNCI);
       tugas = data ? JSON.parse(data) : [];
+      if (!Array.isArray(tugas)) tugas = [];
     } catch (e) {
       tugas = [];
     }
+    tugas = tugas.filter(function (t) { return t && typeof t === "object"; });
+    // lengkapi data lama yang dibuat sebelum ada sinkron
+    tugas.forEach(function (t) {
+      if (!t.diubah) t.diubah = Number(t.id) || Date.now();
+      t.dihapus = t.dihapus === true;
+    });
   }
 
-  function simpan() {
+  function aktif() {
+    return tugas.filter(function (t) { return !t.dihapus; });
+  }
+
+  var sesudahSimpan = null;
+
+  function simpanLokal() {
     try {
       localStorage.setItem(KUNCI, JSON.stringify(tugas));
     } catch (e) {}
+  }
+
+  function simpan() {
+    simpanLokal();
+    if (typeof sesudahSimpan === "function") sesudahSimpan();
   }
 
   /* ---------- Bantuan tanggal ---------- */
@@ -498,7 +527,7 @@
   }
 
   function unduhSemua() {
-    var daftar = tugas.filter(function (t) { return !t.selesai && t.tanggal; });
+    var daftar = aktif().filter(function (t) { return !t.selesai && t.tanggal; });
     if (daftar.length === 0) {
       alert("Belum ada pengingat bertanggal yang bisa diunduh.");
       return;
@@ -524,7 +553,7 @@
       aplikasi: "pengingat-saya",
       versi: 1,
       dibuat: new Date().toISOString(),
-      tugas: tugas
+      tugas: aktif()
     }, null, 2);
     unduhBerkas(isi, "cadangan-pengingat-" + tanggalHariIni() + ".json", "application/json");
   }
@@ -548,7 +577,9 @@
         tanggal: /^\d{4}-\d{2}-\d{2}$/.test(t.tanggal) ? t.tanggal : "",
         jam: /^\d{2}:\d{2}$/.test(t.jam) ? t.jam : "",
         selesai: t.selesai === true,
-        sudahDiingatkan: t.sudahDiingatkan === true
+        sudahDiingatkan: t.sudahDiingatkan === true,
+        diubah: Date.now(),
+        dihapus: false
       });
       tambahan++;
     });
@@ -580,6 +611,7 @@
     cek.checked = t.selesai;
     cek.addEventListener("change", function () {
       t.selesai = cek.checked;
+      t.diubah = Date.now();
       simpan();
       tampilkan();
     });
@@ -602,7 +634,8 @@
     var hapus = buatElemen("button", "merah", "Hapus");
     hapus.addEventListener("click", function () {
       if (confirm("Hapus \"" + t.judul + "\"?")) {
-        tugas = tugas.filter(function (x) { return x.id !== t.id; });
+        t.dihapus = true;
+        t.diubah = Date.now();
         simpan();
         tampilkan();
       }
@@ -628,7 +661,7 @@
     ];
 
     var adaIsi = false;
-    var urut = tugas.slice().sort(urutan);
+    var urut = aktif().sort(urutan);
 
     bagian.forEach(function (b) {
       var anggota = urut.filter(function (t) { return kelompok(t) === b.kunci; });
@@ -659,7 +692,7 @@
 
     var sel = buatElemen("button", kelas, String(tanggal));
     sel.type = "button";
-    var adaJadwal = tugas.some(function (x) { return x.tanggal === kunci && !x.selesai; });
+    var adaJadwal = aktif().some(function (x) { return x.tanggal === kunci && !x.selesai; });
     if (adaJadwal) sel.appendChild(buatElemen("span", "titik"));
     sel.addEventListener("click", function () {
       hariDipilih = kunci;
@@ -680,7 +713,7 @@
       el.appendChild(buatElemen("div", "label-libur " + lib.jenis, awalan + lib.nama));
     }
 
-    var ada = tugas.filter(function (t) { return t.tanggal === hariDipilih; }).sort(urutan);
+    var ada = aktif().filter(function (t) { return t.tanggal === hariDipilih; }).sort(urutan);
     if (ada.length === 0) {
       el.appendChild(buatElemen("div", "waktu", "Belum ada jadwal di hari ini."));
       return;
@@ -773,13 +806,16 @@
       alert("Tulis dulu apa yang mau diingat.");
       return;
     }
+    var sekarangMs = Date.now();
     tugas.push({
-      id: Date.now(),
+      id: sekarangMs,
       judul: judul,
       tanggal: document.getElementById("tanggal").value,
       jam: document.getElementById("jam").value,
       selesai: false,
-      sudahDiingatkan: false
+      sudahDiingatkan: false,
+      diubah: sekarangMs,
+      dihapus: false
     });
     simpan();
     document.getElementById("judul").value = "";
@@ -797,7 +833,7 @@
     var berubah = false;
     var baru = [];
     tugas.forEach(function (t) {
-      if (t.selesai || t.sudahDiingatkan || !t.tanggal || !t.jam) return;
+      if (t.dihapus || t.selesai || t.sudahDiingatkan || !t.tanggal || !t.jam) return;
       var waktu = new Date(t.tanggal + "T" + t.jam);
       if (sekarang >= waktu) {
         t.sudahDiingatkan = true;
@@ -833,6 +869,180 @@
       } else {
         alert("Notifikasi tidak diizinkan. Pengingat tetap muncul sebagai kotak kuning dan bunyi di halaman.");
       }
+    });
+  }
+
+  /* ---------- Sinkron antar perangkat (Firebase) ---------- */
+  var sinkron = { adapter: null, user: null, berhenti: null, siap: false, timer: null, terkirim: {} };
+
+  function setStatusSinkron(teks) {
+    document.getElementById("status-sinkron").textContent = teks;
+  }
+
+  function perbaruiTombolSinkron() {
+    document.getElementById("tombol-masuk").style.display = (sinkron.adapter && !sinkron.user) ? "inline-block" : "none";
+    document.getElementById("tombol-keluar").style.display = sinkron.user ? "inline-block" : "none";
+  }
+
+  function bersihkan(r) {
+    if (!r || typeof r !== "object") return null;
+    var id = Number(r.id);
+    if (!id) return null;
+    var dihapus = r.dihapus === true;
+    var judul = typeof r.judul === "string" ? r.judul.slice(0, 200) : "";
+    if (!dihapus && !judul.trim()) return null;
+    return {
+      id: id,
+      judul: judul,
+      tanggal: /^\d{4}-\d{2}-\d{2}$/.test(r.tanggal) ? r.tanggal : "",
+      jam: /^\d{2}:\d{2}$/.test(r.jam) ? r.jam : "",
+      selesai: r.selesai === true,
+      sudahDiingatkan: false,
+      diubah: Number(r.diubah) || id,
+      dihapus: dihapus
+    };
+  }
+
+  function sudahLewat(t) {
+    if (!t.tanggal || !t.jam) return false;
+    return new Date(t.tanggal + "T" + t.jam) <= new Date();
+  }
+
+  // Gabungkan data dari online ke data di perangkat ini. Yang paling baru diubah yang menang.
+  function gabungSinkron(jauh) {
+    var peta = {};
+    tugas.forEach(function (t) { peta[t.id] = t; });
+    var berubah = false;
+    jauh.forEach(function (r) {
+      var b = bersihkan(r);
+      if (!b) return;
+      var l = peta[b.id];
+      if (!l) {
+        // pengingat baru dari perangkat lain: kalau jamnya sudah lewat, jangan dibunyikan lagi
+        b.sudahDiingatkan = sudahLewat(b);
+        tugas.push(b);
+        peta[b.id] = b;
+        berubah = true;
+      } else if (b.diubah > (l.diubah || 0)) {
+        b.sudahDiingatkan = l.sudahDiingatkan === true;
+        tugas[tugas.indexOf(l)] = b;
+        peta[b.id] = b;
+        berubah = true;
+      }
+    });
+    return berubah;
+  }
+
+  function dorongSemua() {
+    if (!sinkron.adapter || !sinkron.user || !sinkron.siap) return;
+    var uid = sinkron.user.uid;
+    tugas.forEach(function (t) {
+      if (sinkron.terkirim[t.id] === t.diubah) return;
+      sinkron.terkirim[t.id] = t.diubah;
+      var salinan = {
+        id: t.id,
+        judul: t.judul,
+        tanggal: t.tanggal || "",
+        jam: t.jam || "",
+        selesai: t.selesai === true,
+        diubah: t.diubah,
+        dihapus: t.dihapus === true
+      };
+      Promise.resolve().then(function () {
+        return sinkron.adapter.tulisSatu(uid, salinan);
+      }).catch(function () {
+        delete sinkron.terkirim[t.id];
+        setStatusSinkron("Gagal mengirim ke online. Akan dicoba lagi otomatis.");
+        setTimeout(dorongSemua, 15000);
+      });
+    });
+  }
+
+  function terimaDariAwan(daftar) {
+    var berubah = gabungSinkron(daftar);
+    daftar.forEach(function (r) {
+      if (r && r.id) sinkron.terkirim[r.id] = Number(r.diubah) || Number(r.id);
+    });
+    sinkron.siap = true;
+    if (berubah) {
+      simpanLokal();
+      tampilkan();
+    }
+    dorongSemua();
+    var nama = sinkron.user && sinkron.user.email ? sinkron.user.email : "akun Google";
+    setStatusSinkron("Tersambung sebagai " + nama + ". Data tersinkron dengan perangkat lain.");
+  }
+
+  function pesanGalat(e) {
+    var kode = e && e.code ? e.code : "";
+    if (kode === "permission-denied") return "Aturan keamanan Firestore belum diatur atau belum benar.";
+    return kode;
+  }
+
+  function siapkanSinkron(adapter) {
+    sinkron.adapter = adapter;
+    perbaruiTombolSinkron();
+    setStatusSinkron("Belum masuk. Tekan \"Masuk dengan Google\" untuk menyambungkan perangkat ini.");
+    adapter.pantauLogin(function (user) {
+      if (sinkron.berhenti) {
+        sinkron.berhenti();
+        sinkron.berhenti = null;
+      }
+      sinkron.user = user || null;
+      sinkron.siap = false;
+      sinkron.terkirim = {};
+      perbaruiTombolSinkron();
+      if (!user) {
+        setStatusSinkron("Belum masuk. Tekan \"Masuk dengan Google\" untuk menyambungkan perangkat ini.");
+        return;
+      }
+      setStatusSinkron("Masuk. Mengambil data dari online...");
+      sinkron.berhenti = adapter.dengarkan(user.uid, terimaDariAwan, function (e) {
+        setStatusSinkron("Gagal terhubung ke penyimpanan online. " + pesanGalat(e));
+      });
+    });
+  }
+
+  function masukSinkron() {
+    if (!sinkron.adapter) return;
+    setStatusSinkron("Membuka jendela login Google...");
+    Promise.resolve().then(function () {
+      return sinkron.adapter.masuk();
+    }).catch(function (e) {
+      var kode = e && e.code ? e.code : "";
+      if (kode === "auth/popup-closed-by-user" || kode === "auth/cancelled-popup-request") {
+        setStatusSinkron("Login dibatalkan. Tekan \"Masuk dengan Google\" untuk mencoba lagi.");
+      } else if (kode === "auth/popup-blocked") {
+        setStatusSinkron("Jendela login diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.");
+      } else if (kode === "auth/unauthorized-domain") {
+        setStatusSinkron("Domain situs ini belum didaftarkan di Firebase (Authorized domains).");
+      } else {
+        setStatusSinkron("Gagal masuk. " + kode);
+      }
+    });
+  }
+
+  function keluarSinkron() {
+    if (!sinkron.adapter) return;
+    var hapusLokal = false;
+    if (sinkron.siap) {
+      hapusLokal = confirm(
+        "Keluar dari akun Google.\n\n" +
+        "Hapus juga pengingat yang tersimpan di perangkat ini?\n" +
+        "OK = hapus dari perangkat ini (cocok untuk komputer bersama). Data online tetap aman dan muncul lagi saat kamu masuk.\n" +
+        "Batal = tetap simpan di perangkat ini."
+      );
+    }
+    Promise.resolve().then(function () {
+      return sinkron.adapter.keluar();
+    }).then(function () {
+      if (hapusLokal) {
+        tugas = [];
+        simpanLokal();
+        tampilkan();
+      }
+    }).catch(function () {
+      setStatusSinkron("Gagal keluar. Coba lagi.");
     });
   }
 
@@ -879,11 +1089,61 @@
   document.addEventListener("touchstart", siapkanSuara);
   document.addEventListener("keydown", siapkanSuara);
 
+  document.getElementById("tombol-masuk").addEventListener("click", masukSinkron);
+  document.getElementById("tombol-keluar").addEventListener("click", keluarSinkron);
+  sesudahSimpan = function () {
+    if (!sinkron.adapter) return;
+    clearTimeout(sinkron.timer);
+    sinkron.timer = setTimeout(dorongSemua, 600);
+  };
+
   muat();
   tampilkan();
   cekPengingat();
   setInterval(cekPengingat, 20000);
   setInterval(tampilkan, 60000);
+  setTimeout(function () {
+    if (!sinkron.adapter) {
+      setStatusSinkron("Sinkron online belum tersedia. Periksa koneksi internet lalu muat ulang halaman. Aplikasi tetap bisa dipakai dan data tersimpan di perangkat ini.");
+    }
+  }, 10000);
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  var firebaseConfig = {
+    apiKey: "AIzaSyBBN-W0IS478dt3rMYqTNhZK2wqVlphQyQ",
+    authDomain: "pengingat-a1b2c.firebaseapp.com",
+    projectId: "pengingat-a1b2c",
+    storageBucket: "pengingat-a1b2c.firebasestorage.app",
+    messagingSenderId: "400054651364",
+    appId: "1:400054651364:web:44b64b82badc979ba49ff1"
+  };
+
+  try {
+    var app = initializeApp(firebaseConfig);
+    var auth = getAuth(app);
+    var db = getFirestore(app);
+    window.siapkanSinkron({
+      masuk: function () { return signInWithPopup(auth, new GoogleAuthProvider()); },
+      keluar: function () { return signOut(auth); },
+      pantauLogin: function (cb) { return onAuthStateChanged(auth, cb); },
+      tulisSatu: function (uid, item) {
+        return setDoc(doc(db, "users", uid, "tugas", String(item.id)), item);
+      },
+      dengarkan: function (uid, onData, onError) {
+        return onSnapshot(collection(db, "users", uid, "tugas"), function (snap) {
+          onData(snap.docs.map(function (d) { return d.data(); }));
+        }, onError);
+      }
+    });
+  } catch (e) {
+    var el = document.getElementById("status-sinkron");
+    if (el) el.textContent = "Sinkron online gagal dimulai. Aplikasi tetap bisa dipakai dan data tersimpan di perangkat ini.";
+  }
 </script>
 </body>
 </html>
